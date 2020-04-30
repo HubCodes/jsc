@@ -31,6 +31,14 @@ void Vector_set(Vector* this, int index, void* item);
 void* Vector_pop(Vector* this);
 
 typedef struct {
+    char* buf;
+    int size;
+    int capacity;
+} String;
+String* String_new(void);
+void String_push(String* this, char item);
+
+typedef struct {
     int start_line;
     int start_col;
     int end_line;
@@ -56,10 +64,8 @@ typedef struct {
         double doubl;
         int boolean;
         char punct;
-        struct {
-            char* str;
-            int size;
-        };
+        String* id;
+    };
     };
 } Token;
 typedef struct {
@@ -193,7 +199,8 @@ typedef struct AST {
         int boolean;
         int integer;
         double doubl;
-        char* id;
+        String* id;
+        String* string;
         struct {
             char* str;
             int size;
@@ -257,7 +264,7 @@ typedef struct AST {
 typedef struct Object {
     struct Object* prototype;
     Map* properties;
-    char* type_str;
+    String* type_str;
 } Object;
 
 typedef struct Env {
@@ -442,6 +449,39 @@ static void Vector_extend(Vector* this) {
 }
 
 #undef VECTOR_CAPACITY
+
+/*
+ * String: Variable length character sequence
+ */
+
+#define STRING_CAPACITY 8
+
+static void String_extend(String* this);
+
+String* String_new(void) {
+    String* this = calloc(sizeof(String), 1);
+    this->buf = calloc(sizeof(char), STRING_CAPACITY);
+    this->capacity = STRING_CAPACITY;
+    this->size = 0;
+    return this;
+}
+
+static void String_extend(String* this) {
+    int old_capacity = this->capacity;
+    int new_capacity = old_capacity + STRING_CAPACITY;
+    char* old_buf = this->buf;
+    this->buf = calloc(sizeof(char), new_capacity);
+    this->capacity = new_capacity;
+    strncpy(this->buf, old_buf, old_capacity * sizeof(char));
+}
+
+void String_push(String* this, char item) {
+    if (this->size >= this->capacity) String_extend(this);
+    this->buf[this->size] = item;
+    this->size++;
+}
+
+#undef STRING_CAPACITY
 
 /*
  * Lexer: Tokenize raw source code into Token
