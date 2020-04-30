@@ -20,6 +20,17 @@ void* Map_get(Map* this, char* key);
 void Map_remove(Map* this, char* key);
 
 typedef struct {
+    void** buf;
+    int size;
+    int capacity;
+} Vector;
+Vector* Vector_new(void);
+void Vector_push(Vector* this, void* item);
+void* Vector_get(Vector* this, int index);
+void Vector_set(Vector* this, int index, void* item);
+void* Vector_pop(Vector* this);
+
+typedef struct {
     int start_line;
     int start_col;
     int end_line;
@@ -255,6 +266,12 @@ typedef struct Env {
     int children_size;
 } Env;
 
+/*
+ * THIS IS MAIN!
+ *
+ * int main(int argc, char** argv)
+ */
+
 int main(int argc, char** argv) {
     return 0;
 }
@@ -376,9 +393,60 @@ void Map_remove(Map* this, char* key) {
 #undef MAP_SIZE
 
 /*
- * Lexer: Tokenize raw source code into Token
+ * Vector: Variable length array
  */
 
+#define VECTOR_CAPACITY 8
+
+static void Vector_extend(Vector* this);
+
+Vector* Vector_new(void) {
+    Vector* this = calloc(sizeof(Vector), 1);
+    this->buf = calloc(sizeof(void*), VECTOR_CAPACITY);
+    this->size = 0;
+    this->capacity = VECTOR_CAPACITY;
+    return this;
+}
+
+void Vector_push(Vector* this, void* item) {
+    if (this->size >= this->capacity) Vector_extend(this);
+    this->buf[this->size] = item;
+    this->size++;
+}
+
+void* Vector_get(Vector* this, int index) {
+    if (index >= this->size) return NULL;
+    return this->buf[index];
+}
+
+void Vector_set(Vector* this, int index, void* item) {
+    if (index >= this->size && index < 0) return;
+    this->buf[index] = item;
+}
+
+void* Vector_pop(Vector* this) {
+    int last_index = this->size - 1;
+    void* item = Vector_get(this, last_index);
+    Vector_set(this, last_index, NULL);
+    this->size--;
+    return item;
+}
+
+static void Vector_extend(Vector* this) {
+    int old_capacity = this->capacity;
+    int new_capacity = old_capacity * 2;
+    void** old_buf = this->buf;
+    this->buf = calloc(sizeof(void*), new_capacity);
+    this->capacity = new_capacity;
+    memcpy((void*) this->buf, old_buf, old_capacity * sizeof(void*));
+}
+
+#undef VECTOR_CAPACITY
+
+/*
+ * Lexer: Tokenize raw source code into Token
+ */
+/*
 Lexer* Lexer_new(const char* code, int code_size) {
     Lexer* this = calloc(sizeof(Lexer), 1);
     this->code = calloc(sizeof(char), code_size);
@@ -397,14 +465,8 @@ static Token* Lexer_get_id(Lexer* this);
 
 Token* Lexer_next(Lexer* this) {
     Lexer_skip_whitespace(this);
-    int ch = Lexer_peek_char(this);
-    switch (ch) {
-        case 'a' ... 'z':
-        case 'A' ... 'Z':
-        case '_':
-        case '$':
-            return Lexer_get_id(this);
-    }
+    // int ch = Lexer_peek_char(this);
+    return NULL;
 }
 
 static void Lexer_skip_whitespace(Lexer* this) {
@@ -415,3 +477,4 @@ static void Lexer_skip_whitespace(Lexer* this) {
 static Token* Lexer_get_id(Lexer* this) {
     return NULL;
 }
+*/
