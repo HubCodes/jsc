@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,6 +19,13 @@ void Map_set(Map* this, char* key, void* value);
 void* Map_get(Map* this, char* key);
 void Map_remove(Map* this, char* key);
 
+typedef struct {
+    int start_line;
+    int start_col;
+    int end_line;
+    int end_col;
+} Loc;
+
 typedef enum {
     TOK_ID,
     TOK_KEYWORD,
@@ -31,6 +39,7 @@ typedef enum {
 } TokenKind;
 typedef struct {
     TokenKind kind;
+    Loc loc;
     union {
         int integer;
         double doubl;
@@ -42,13 +51,17 @@ typedef struct {
         };
     };
 } Token;
-
 typedef struct {
-    int start_line;
-    int start_col;
-    int end_line;
-    int end_col;
-} Loc;
+    char* code;
+    int code_size;
+    int pos;
+    int line;
+    int col;
+} Lexer;
+Lexer* Lexer_new(const char* code, int code_size);
+Token* Lexer_next(Lexer* this);
+Token* Lexer_peek(Lexer* this);
+
 typedef enum {
     AST_LIT_BOOLEAN,
     AST_LIT_INTEGER,
@@ -246,6 +259,12 @@ int main(int argc, char** argv) {
     return 0;
 }
 
+/*
+ * Map: HashMap implementation
+ *
+ * Separate chaining with linked list
+ */
+
 #define MAP_SIZE 128
 
 Map* Map_new(void) {
@@ -355,3 +374,44 @@ void Map_remove(Map* this, char* key) {
 }
 
 #undef MAP_SIZE
+
+/*
+ * Lexer: Tokenize raw source code into Token
+ */
+
+Lexer* Lexer_new(const char* code, int code_size) {
+    Lexer* this = calloc(sizeof(Lexer), 1);
+    this->code = calloc(sizeof(char), code_size);
+    this->code_size = code_size;
+    this->pos = 0;
+    this->line = 0;
+    this->col = 0;
+    strncpy(this->code, code, code_size);
+    return this;
+}
+
+static int Lexer_get_char(Lexer* this);
+static int Lexer_peek_char(Lexer* this);
+static void Lexer_skip_whitespace(Lexer* this);
+static Token* Lexer_get_id(Lexer* this);
+
+Token* Lexer_next(Lexer* this) {
+    Lexer_skip_whitespace(this);
+    int ch = Lexer_peek_char(this);
+    switch (ch) {
+        case 'a' ... 'z':
+        case 'A' ... 'Z':
+        case '_':
+        case '$':
+            return Lexer_get_id(this);
+    }
+}
+
+static void Lexer_skip_whitespace(Lexer* this) {
+    int ch;
+    while (isspace(ch = Lexer_peek_char(this))) Lexer_get_char(this);
+}
+
+static Token* Lexer_get_id(Lexer* this) {
+    return NULL;
+}
