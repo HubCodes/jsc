@@ -20,8 +20,28 @@ void Map_remove(Map* this, char* key);
 
 typedef enum {
     TOK_ID,
-    TOK_VOID,
+    TOK_KEYWORD,
+    TOK_INTEGER,
+    TOK_DOUBLE,
+    TOK_STRING,
+    TOK_BOOLEAN,
+    TOK_SPREAD,
+    TOK_EOT,
+    TOK_BAD,
 } TokenKind;
+typedef struct {
+    TokenKind kind;
+    union {
+        int integer;
+        double doubl;
+        int boolean;
+        char punct;
+        struct {
+            char* str;
+            int size;
+        };
+    };
+} Token;
 
 typedef struct {
     int start_line;
@@ -149,8 +169,11 @@ typedef struct AST {
         int boolean;
         int integer;
         double doubl;
-        char* string;
         char* id;
+        struct {
+            char* str;
+            int size;
+        } string;
         struct {
             int size;
             struct AST** items;
