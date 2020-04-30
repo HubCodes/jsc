@@ -3,35 +3,39 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct MapEntry {
+typedef struct MapEntry {
     char* key;
     void* value;
     struct MapEntry* next;
-};
-typedef struct MapEntry MapEntry;
-struct Map {
+} MapEntry;
+typedef struct {
     MapEntry** bucket;
     int size;
     int entries;
-};
-typedef struct Map Map;
+} Map;
 Map* Map_new(void);
 void Map_set(Map* this, char* key, void* value);
 void* Map_get(Map* this, char* key);
 void Map_remove(Map* this, char* key);
 
-struct Loc {
+typedef enum {
+    TOK_ID,
+    TOK_VOID,
+} TokenKind;
+
+typedef struct {
     int start_line;
     int start_col;
     int end_line;
     int end_col;
-};
-typedef struct Loc Loc;
-enum ASTKind {
+} Loc;
+typedef enum {
     AST_LIT_BOOLEAN,
     AST_LIT_INTEGER,
     AST_LIT_DOUBLE,
     AST_LIT_STRING,
+    AST_LIT_UNDEFINED,
+    AST_LIT_NULL,
     AST_LIT_ARRAY,
     AST_LIT_OBJECT,
     AST_ID,
@@ -46,9 +50,8 @@ enum ASTKind {
     AST_FUNCTION,
     AST_BLOCK,
     AST_VARDEC,
-};
-typedef enum ASTKind ASTKind;
-enum BinOpKind {
+} ASTKind;
+typedef enum {
     OP_ASSIGN,
     OP_ADD_ASSIGN,
     OP_SUB_ASSIGN,
@@ -82,9 +85,8 @@ enum BinOpKind {
     OP_IN,
     OP_INSTANCEOF,
     OP_CALL,
-};
-typedef enum BinOpKind BinOpKind;
-enum UnOpKind {
+} BinOpKind;
+typedef enum {
     OP_PRE_INC,
     OP_PRE_DEC,
     OP_POST_INC,
@@ -98,8 +100,7 @@ enum UnOpKind {
     OP_NEW,
     OP_SUPER,
     OP_SPREAD,
-};
-typedef enum UnOpKind UnOpKind;
+} UnOpKind;
 const char* keywords[] = {
     "await",
     "break",
@@ -141,7 +142,7 @@ const char* keywords[] = {
     "with",
     "yield",
 };
-struct AST {
+typedef struct AST {
     ASTKind kind;
     Loc loc;
     union {
@@ -150,76 +151,73 @@ struct AST {
         double doubl;
         char* string;
         char* id;
-        struct ArrayLit {
+        struct {
             int size;
             struct AST** items;
         } arr_lit;
-        struct ObjectLit {
+        struct {
             Map* data;
         } obj_lit;
-        struct UnOp {
+        struct {
             UnOpKind op;
             struct AST* expr;
         } unary;
-        struct BinOp {
+        struct {
             BinOpKind op;
             struct AST* left;
             struct AST* right;
         } binary;
-        struct IfElse {
+        struct {
             struct AST* cond;
             struct AST* then;
             struct AST* els;
         } if_else;
-        struct For {
+        struct {
             struct AST* init;
             struct AST* cond;
             struct AST* mod;
             struct AST* body;
         } for_loop;
-        struct While {
+        struct {
             struct AST* cond;
             struct AST* body;
         } while_loop;
-        struct Return {
+        struct {
             struct AST* value;
         } return_stmt;
         struct Args {
             struct AST** args;
             int size;
         } args;
-        struct Function {
+        struct {
             char* name;
             struct Args args;
             int args_size;
             struct AST* body;
         } function;
-        struct Block {
+        struct {
             struct AST** stmts;
             int size;
         } block;
-        struct VarDec {
+        struct {
             struct AST* id;
             struct AST* init;
             int type;
         } var_dec;
     };
-};
-typedef struct AST AST;
+} AST;
 
-struct Object {
+typedef struct Object {
     struct Object* prototype;
     Map* properties;
     char* type_str;
-};
-typedef struct Object Object;
+} Object;
 
-struct Env {
+typedef struct Env {
     struct Env* parent;
     struct Env** children;
     int children_size;
-};
-typedef struct Env Env;
+} Env;
 
 int main(int argc, char** argv) {
     return 0;
