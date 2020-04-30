@@ -39,10 +39,12 @@ String* String_new(void);
 void String_push(String* this, char item);
 
 typedef struct {
-    int start_line;
-    int start_col;
-    int end_line;
-    int end_col;
+    int line;
+    int col;
+} Pos;
+typedef struct {
+    Pos start;
+    Pos end;
 } Loc;
 
 typedef enum {
@@ -56,18 +58,19 @@ typedef enum {
     TOK_EOT,
     TOK_BAD,
 } TokenKind;
+typedef union TokenData {
+    int integer;
+    double doubl;
+    int boolean;
+    char punct;
+    String* id;
+} TokenData;
 typedef struct {
     TokenKind kind;
     Loc loc;
-    union {
-        int integer;
-        double doubl;
-        int boolean;
-        char punct;
-        String* id;
-    };
-    };
+    TokenData data;
 } Token;
+Token* Token_new(TokenKind kind, Loc loc, TokenData data);
 typedef struct {
     char* code;
     int code_size;
@@ -201,10 +204,6 @@ typedef struct AST {
         double doubl;
         String* id;
         String* string;
-        struct {
-            char* str;
-            int size;
-        } string;
         struct {
             int size;
             struct AST** items;
@@ -484,9 +483,21 @@ void String_push(String* this, char item) {
 #undef STRING_CAPACITY
 
 /*
+ * Token: Distinguished source code elements
+ */
+
+Token* Token_new(TokenKind kind, Loc loc, TokenData data) {
+    Token* this = calloc(sizeof(Token), 1);
+    this->kind = kind;
+    this->loc = loc;
+    this->data = data;
+    return this;
+}
+
+/*
  * Lexer: Tokenize raw source code into Token
  */
-/*
+
 Lexer* Lexer_new(const char* code, int code_size) {
     Lexer* this = calloc(sizeof(Lexer), 1);
     this->code = calloc(sizeof(char), code_size);
@@ -498,6 +509,12 @@ Lexer* Lexer_new(const char* code, int code_size) {
     return this;
 }
 
+static int is_newline(int ch);
+static int is_id_start(int ch);
+static int is_id_content(int ch);
+static int is_keyword(String* string);
+
+static Pos Lexer_get_pos(Lexer* this);
 static int Lexer_get_char(Lexer* this);
 static int Lexer_peek_char(Lexer* this);
 static void Lexer_skip_whitespace(Lexer* this);
@@ -505,8 +522,56 @@ static Token* Lexer_get_id(Lexer* this);
 
 Token* Lexer_next(Lexer* this) {
     Lexer_skip_whitespace(this);
-    // int ch = Lexer_peek_char(this);
+    int ch = Lexer_peek_char(this);
+    if (is_id_start(ch)) {
+        return Lexer_get_id(this);
+    }
     return NULL;
+}
+
+static int is_newline(int ch) {
+    return ch == '\r' || ch == '\n';
+}
+
+static int is_id_start(int ch) {
+    return (
+        ('a' <= ch && ch <= 'z') ||
+        ('A' <= ch && ch <= 'Z') ||
+        ch == '$' ||
+        ch == '_'
+    );
+}
+
+static int is_id_content(int ch) {
+    return is_id_start(ch) || ('0' <= ch && ch <= '9');
+}
+
+static int is_keyword(String* string) {
+    int size = sizeof(keywords) / sizeof(char*);
+    for (int i = 0; i < size; i++) {
+        if (strcmp(string->buf, keywords[i]) == 0) return 1;
+    }
+    return 0;
+}
+
+static Pos Lexer_get_pos(Lexer* this) {
+    return (Pos) { .line = this->line, .col = this->col };
+}
+
+static int Lexer_get_char(Lexer* this) {
+    int ch = this->code[this->pos];
+    this->pos++;
+    if (is_newline(ch)) {
+        this->line++;
+        this->col = 0;
+    } else {
+        this->col++;
+    }
+    return ch;
+}
+
+static int Lexer_peek_char(Lexer* this) {
+    return this->code[this->pos];
 }
 
 static void Lexer_skip_whitespace(Lexer* this) {
@@ -515,6 +580,17 @@ static void Lexer_skip_whitespace(Lexer* this) {
 }
 
 static Token* Lexer_get_id(Lexer* this) {
-    return NULL;
+    String* id = String_new();
+    Pos start = Lexer_get_pos(this);
+    Pos end;
+    String_push(id, Lexer_get_char(this));
+    while (is_id_content(Lexer_peek_char(this))) {
+        String_push(id, Lexer_get_char(this));
+    }
+    end = Lexer_get_pos(this);
+    Loc loc = { .start = start, .end = end };
+    if (is_keyword(id)) {
+        return Token_new(TOK_KEYWORD, loc, (TokenData) { .id = id });
+    }
+    return Token_new(TOK_ID, loc, (TokenData) { .id = id });
 }
-*/
