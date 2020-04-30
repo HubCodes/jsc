@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,8 +46,8 @@ Map* Map_new(void) {
     return this;
 }
 
-static int string_hash(char* str) {
-    int value = 37;
+static unsigned int string_hash(char* str) {
+    unsigned int value = 37;
     while (*str) {
         value = (value * 54059) ^ (*str * 76963);
         str++;
@@ -68,8 +69,6 @@ static void Map_rehash(Map* this) {
         MapEntry* entry = old_bucket[i];
         MapEntry* prev = NULL;
         while (entry) {
-            int key_index = string_hash(entry->key) % new_size;
-            MapEntry* table_entry = new_bucket[key_index];
             Map_set(this, entry->key, entry->value);
             prev = entry;
             entry = entry->next;
@@ -81,8 +80,7 @@ static void Map_rehash(Map* this) {
 
 void Map_set(Map* this, char* key, void* value) {
     Map_rehash(this);
-    int key_size = strlen(key);
-    int key_index = string_hash(key) % this->size;
+    unsigned int key_index = string_hash(key) % this->size;
     MapEntry* table_entry = this->bucket[key_index];
     MapEntry* new_entry = calloc(sizeof(MapEntry), 1);
     MapEntry* prev_entry = NULL;
@@ -91,10 +89,11 @@ void Map_set(Map* this, char* key, void* value) {
     new_entry->next = NULL;
     if (!table_entry) {
         this->bucket[key_index] = new_entry;
+        this->entries++;
         return;
     }
     while (table_entry) {
-        int is_same_key = strncmp(key, table_entry->key, key_size);
+        int is_same_key = strcmp(key, table_entry->key) == 0;
         if (is_same_key && prev_entry) {
             new_entry->next = table_entry->next;
             prev_entry->next = new_entry;
@@ -113,24 +112,22 @@ void Map_set(Map* this, char* key, void* value) {
 }
 
 void* Map_get(Map* this, char* key) {
-    int key_size = strlen(key);
-    int key_index = string_hash(key) % this->size;
+    unsigned int key_index = string_hash(key) % this->size;
     MapEntry* table_entry = this->bucket[key_index];
     while (table_entry) {
-        int is_same_key = strncmp(key, table_entry->key, key_size);
+        int is_same_key = strcmp(key, table_entry->key) == 0;
         if (is_same_key) return table_entry->value;
         table_entry = table_entry->next;
     }
-    if (!table_entry) return NULL;
+    return NULL;
 }
 
 void Map_remove(Map* this, char* key) {
-    int key_size = strlen(key);
-    int key_index = string_hash(key) % this->size;
+    unsigned int key_index = string_hash(key) % this->size;
     MapEntry* table_entry = this->bucket[key_index];
     MapEntry* prev_entry = NULL;
     while (table_entry) {
-        int is_same_key = strncmp(key, table_entry->key, key_size);
+        int is_same_key = strcmp(key, table_entry->key) == 0;
         if (is_same_key && prev_entry) {
             this->entries--;
             prev_entry->next = table_entry->next;
