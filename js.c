@@ -36,7 +36,9 @@ typedef struct {
     int capacity;
 } String;
 String* String_new(void);
+void String_delete(String* this);
 void String_push(String* this, char item);
+void String_append(String* this, String* that);
 
 typedef struct {
     int line;
@@ -46,6 +48,7 @@ typedef struct {
     Pos start;
     Pos end;
 } Loc;
+Loc Loc_make(Pos start, Pos end);
 
 typedef enum {
     TOK_ID,
@@ -465,6 +468,11 @@ String* String_new(void) {
     return this;
 }
 
+void String_delete(String* this) {
+    free(this->buf);
+    free(this);
+}
+
 static void String_extend(String* this) {
     int old_capacity = this->capacity;
     int new_capacity = old_capacity + STRING_CAPACITY;
@@ -480,7 +488,29 @@ void String_push(String* this, char item) {
     this->size++;
 }
 
+void String_append(String* this, String* that) {
+    if (this->capacity - this->size > that->size) {
+        strncpy(this->buf + this->size, that->buf, that->size * sizeof(char));
+        return;
+    }
+    char* new_buf = calloc(sizeof(char), this->capacity + that->capacity);
+    strncpy(new_buf, this->buf, sizeof(char) * this->size);
+    strncpy(new_buf + this->size, that->buf, sizeof(char) * that->size);
+    free(this->buf);
+    this->size += that->size;
+    this->capacity += that->capacity;
+    this->buf = new_buf;
+}
+
 #undef STRING_CAPACITY
+
+/*
+ * Loc: Source code location
+ */
+
+Loc Loc_make(Pos start, Pos end) {
+    return (Loc){.start=start, .end=end};
+}
 
 /*
  * Token: Distinguished source code elements
@@ -498,6 +528,13 @@ Token* Token_new(TokenKind kind, Loc loc, TokenData data) {
  * Lexer: Tokenize raw source code into Token
  */
 
+#define MAKE_TOKEN(name) \
+        String* name = String_new(); \
+        Pos start = Lexer_get_pos(this); \
+        Pos end; \
+        Loc loc; \
+        TokenData token_data;
+
 Lexer* Lexer_new(const char* code, int code_size) {
     Lexer* this = calloc(sizeof(Lexer), 1);
     this->code = calloc(sizeof(char), code_size);
@@ -512,19 +549,25 @@ Lexer* Lexer_new(const char* code, int code_size) {
 static int is_newline(int ch);
 static int is_id_start(int ch);
 static int is_id_content(int ch);
+static int is_number_start(int ch);
 static int is_keyword(String* string);
 
 static Pos Lexer_get_pos(Lexer* this);
 static int Lexer_get_char(Lexer* this);
 static int Lexer_peek_char(Lexer* this);
 static void Lexer_skip_whitespace(Lexer* this);
-static Token* Lexer_get_id(Lexer* this);
+static String* Lexer_get_exp(Lexer* this);
+
+static Token* Lexer_get_id(Lexer* this, int ch);
+static Token* Lexer_get_number(Lexer* this, int ch);
 
 Token* Lexer_next(Lexer* this) {
     Lexer_skip_whitespace(this);
-    int ch = Lexer_peek_char(this);
+    int ch = Lexer_get_char(this);
     if (is_id_start(ch)) {
-        return Lexer_get_id(this);
+        return Lexer_get_id(this, ch);
+    } else if (is_number_start(ch)) {
+        return Lexer_get_number(this, ch);
     }
     return NULL;
 }
@@ -546,6 +589,10 @@ static int is_id_content(int ch) {
     return is_id_start(ch) || ('0' <= ch && ch <= '9');
 }
 
+static int is_number_start(int ch) {
+    return isdigit(ch) || ch == '.';
+}
+
 static int is_keyword(String* string) {
     int size = sizeof(keywords) / sizeof(char*);
     for (int i = 0; i < size; i++) {
@@ -555,7 +602,7 @@ static int is_keyword(String* string) {
 }
 
 static Pos Lexer_get_pos(Lexer* this) {
-    return (Pos) { .line = this->line, .col = this->col };
+    return (Pos){.line=this->line, .col=this->col};
 }
 
 static int Lexer_get_char(Lexer* this) {
@@ -575,22 +622,66 @@ static int Lexer_peek_char(Lexer* this) {
 }
 
 static void Lexer_skip_whitespace(Lexer* this) {
-    int ch;
-    while (isspace(ch = Lexer_peek_char(this))) Lexer_get_char(this);
+    while (isspace(Lexer_peek_char(this))) Lexer_get_char(this);
 }
 
-static Token* Lexer_get_id(Lexer* this) {
-    String* id = String_new();
-    Pos start = Lexer_get_pos(this);
-    Pos end;
-    String_push(id, Lexer_get_char(this));
+static String* Lexer_get_exp(Lexer* this) {
+    String* exp = String_new();
+    int ch = Lexer_peek_char(this);
+    if (ch == '+' || ch == '-') {
+        String_push(exp, Lexer_get_char(this));
+        ch = Lexer_peek_char(this);
+    }
+    while (isdigit(ch)) {
+        String_push(exp, Lexer_get_char(this));
+        ch = Lexer_peek_char(this);
+    }
+    return exp;
+}
+
+static Token* Lexer_get_id(Lexer* this, int ch) {
+    MAKE_TOKEN(id)
     while (is_id_content(Lexer_peek_char(this))) {
         String_push(id, Lexer_get_char(this));
     }
     end = Lexer_get_pos(this);
-    Loc loc = { .start = start, .end = end };
+    loc = Loc_make(start, end);
+    token_data.id = id;
     if (is_keyword(id)) {
-        return Token_new(TOK_KEYWORD, loc, (TokenData) { .id = id });
+        return Token_new(TOK_KEYWORD, loc, token_data);
     }
-    return Token_new(TOK_ID, loc, (TokenData) { .id = id });
+    return Token_new(TOK_ID, loc, token_data);
+}
+
+static Token* Lexer_get_number(Lexer* this, int ch) {
+    MAKE_TOKEN(number)
+    int next_ch;
+    int stop = 0;
+    TokenKind kind = ch == '.' ? TOK_DOUBLE : TOK_INTEGER;
+    String_push(number, ch);
+    for (;;) {
+        next_ch = Lexer_get_char(this);
+        if (toupper(next_ch) == 'E') {
+            String* exp = Lexer_get_exp(this);
+            String_append(number, exp);
+            String_delete(exp);
+            goto make_token;
+        } else if (kind == TOK_INTEGER && next_ch == '.') {
+            String_push(number, next_ch);
+            kind = TOK_DOUBLE;
+        } else if (isdigit(next_ch)) {
+            String_push(number, next_ch);
+        } else {
+            break;
+        }
+    }
+make_token:
+    end = Lexer_get_pos(this);
+    loc = Loc_make(start, end);
+    if (kind == TOK_DOUBLE) {
+        token_data.doubl = strtod(number->buf, NULL);
+    } else {
+        token_data.integer = atoi(number->buf);
+    }
+    return Token_new(kind, loc, token_data);
 }
