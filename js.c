@@ -555,6 +555,7 @@ static int is_keyword(String* string);
 static Pos Lexer_get_pos(Lexer* this);
 static int Lexer_get_char(Lexer* this);
 static int Lexer_peek_char(Lexer* this);
+static void Lexer_unget_char(Lexer* this);
 static void Lexer_skip_whitespace(Lexer* this);
 static String* Lexer_get_exp(Lexer* this);
 
@@ -570,6 +571,13 @@ Token* Lexer_next(Lexer* this) {
         return Lexer_get_number(this, ch);
     }
     return NULL;
+}
+
+Token* Lexer_peek(Lexer* this) {
+    Lexer prevState = *this;
+    Token* token = Lexer_next(this);
+    *this = prevState;
+    return token;
 }
 
 static int is_newline(int ch) {
@@ -627,6 +635,7 @@ static void Lexer_skip_whitespace(Lexer* this) {
 
 static String* Lexer_get_exp(Lexer* this) {
     String* exp = String_new();
+    String_push(exp, 'e');
     int ch = Lexer_peek_char(this);
     if (ch == '+' || ch == '-') {
         String_push(exp, Lexer_get_char(this));
@@ -641,6 +650,7 @@ static String* Lexer_get_exp(Lexer* this) {
 
 static Token* Lexer_get_id(Lexer* this, int ch) {
     MAKE_TOKEN(id)
+    String_push(id, ch);
     while (is_id_content(Lexer_peek_char(this))) {
         String_push(id, Lexer_get_char(this));
     }
@@ -656,20 +666,24 @@ static Token* Lexer_get_id(Lexer* this, int ch) {
 static Token* Lexer_get_number(Lexer* this, int ch) {
     MAKE_TOKEN(number)
     int next_ch;
-    int stop = 0;
+    int is_exp = 0;
     TokenKind kind = ch == '.' ? TOK_DOUBLE : TOK_INTEGER;
     String_push(number, ch);
     for (;;) {
-        next_ch = Lexer_get_char(this);
+        next_ch = Lexer_peek_char(this);
         if (toupper(next_ch) == 'E') {
+            Lexer_get_char(this);
             String* exp = Lexer_get_exp(this);
             String_append(number, exp);
             String_delete(exp);
+            is_exp = 1;
             goto make_token;
         } else if (kind == TOK_INTEGER && next_ch == '.') {
+            Lexer_get_char(this);
             String_push(number, next_ch);
             kind = TOK_DOUBLE;
         } else if (isdigit(next_ch)) {
+            Lexer_get_char(this);
             String_push(number, next_ch);
         } else {
             break;
@@ -678,10 +692,11 @@ static Token* Lexer_get_number(Lexer* this, int ch) {
 make_token:
     end = Lexer_get_pos(this);
     loc = Loc_make(start, end);
-    if (kind == TOK_DOUBLE) {
+    if (kind == TOK_DOUBLE || is_exp) {
+        kind = TOK_DOUBLE;
         token_data.doubl = strtod(number->buf, NULL);
     } else {
-        token_data.integer = atoi(number->buf);
+        token_data.integer = strtol(number->buf, NULL, 10);
     }
     return Token_new(kind, loc, token_data);
 }
