@@ -51,11 +51,66 @@ typedef struct {
 Loc Loc_make(Pos start, Pos end);
 
 typedef enum {
+    OP_ASSIGN,
+    OP_PLUS_ASSIGN,
+    OP_MINUS_ASSIGN,
+    OP_MUL_ASSIGN,
+    OP_DIV_ASSIGN,
+    OP_MOD_ASSIGN,
+    OP_EXP_ASSIGN,
+    OP_SHL_ASSIGN,
+    OP_SHR_ASSIGN,
+    OP_SHR_UNSIGNED_ASSIGN,
+    OP_BITAND_ASSIGN,
+    OP_BITXOR_ASSIGN,
+    OP_BITOR_ASSIGN,
+    OP_EQ,
+    OP_NEQ,
+    OP_EQ_SAME,
+    OP_NEQ_SAME,
+    OP_GT,
+    OP_LT,
+    OP_GTE,
+    OP_LTE,
+    OP_MOD,
+    OP_BITAND,
+    OP_BITOR,
+    OP_BITXOR,
+    OP_SHL,
+    OP_SHR,
+    OP_SHR_UNSIGNED,
+    OP_LAND,
+    OP_LOR,
+    OP_IN,
+    OP_INSTANCEOF,
+    OP_CALL,
+    OP_ARROW,
+    OP_BINOP_ILLEGAL,
+} BinOpKind;
+typedef enum {
+    OP_PRE_INC,
+    OP_PRE_DEC,
+    OP_POST_INC,
+    OP_POST_DEC,
+    OP_NEG,
+    OP_PLUS,
+    OP_BITNOT,
+    OP_DELETE,
+    OP_TYPEOF,
+    OP_VOID,
+    OP_NEW,
+    OP_SUPER,
+    OP_SPREAD,
+    OP_UNOP_ILLEGAL,
+} UnOpKind;
+typedef enum {
     TOK_ID,
     TOK_KEYWORD,
     TOK_INTEGER,
     TOK_DOUBLE,
     TOK_STRING,
+    TOK_PUNCT,
+    TOK_OP,
     TOK_BOOLEAN,
     TOK_SPREAD,
     TOK_EOT,
@@ -67,6 +122,8 @@ typedef union TokenData {
     int boolean;
     char punct;
     String* id;
+    BinOpKind binop;
+    UnOpKind unop;
 } TokenData;
 typedef struct {
     TokenKind kind;
@@ -107,56 +164,6 @@ typedef enum {
     AST_BLOCK,
     AST_VARDEC,
 } ASTKind;
-typedef enum {
-    OP_ASSIGN,
-    OP_ADD_ASSIGN,
-    OP_SUB_ASSIGN,
-    OP_MUL_ASSIGN,
-    OP_DIV_ASSIGN,
-    OP_MOD_ASSIGN,
-    OP_EXP_ASSIGN,
-    OP_SHL_ASSIGN,
-    OP_SHR_ASSIGN,
-    OP_SHR_UNSIGNED_ASSIGN,
-    OP_BITAND_ASSIGN,
-    OP_BITXOR_ASSIGN,
-    OP_BITOR_ASSIGN,
-    OP_EQ,
-    OP_NEQ,
-    OP_EQ_SAME,
-    OP_NEQ_SAME,
-    OP_GT,
-    OP_LT,
-    OP_GTE,
-    OP_LTE,
-    OP_MOD,
-    OP_BITAND,
-    OP_BITOR,
-    OP_BITXOR,
-    OP_SHL,
-    OP_SHR,
-    OP_SHR_UNSIGNED,
-    OP_LAND,
-    OP_LOR,
-    OP_IN,
-    OP_INSTANCEOF,
-    OP_CALL,
-} BinOpKind;
-typedef enum {
-    OP_PRE_INC,
-    OP_PRE_DEC,
-    OP_POST_INC,
-    OP_POST_DEC,
-    OP_NEG,
-    OP_PLUS,
-    OP_BITNOT,
-    OP_DELETE,
-    OP_TYPEOF,
-    OP_VOID,
-    OP_NEW,
-    OP_SUPER,
-    OP_SPREAD,
-} UnOpKind;
 const char* keywords[] = {
     "await",
     "break",
@@ -550,17 +557,26 @@ static int is_newline(int ch);
 static int is_id_start(int ch);
 static int is_id_content(int ch);
 static int is_number_start(int ch);
+static int is_string_literal_start(int ch);
+static int is_punct(int ch);
 static int is_keyword(String* string);
+static BinOpKind get_binop(String* strig);
+static UnOpKind get_unop(String* string);
+static int is_op_start(int ch);
 
 static Pos Lexer_get_pos(Lexer* this);
 static int Lexer_get_char(Lexer* this);
 static int Lexer_peek_char(Lexer* this);
-static void Lexer_unget_char(Lexer* this);
+static String* Lexer_peek_char2(Lexer* this);
+static String* Lexer_peek_char3(Lexer* this);
 static void Lexer_skip_whitespace(Lexer* this);
 static String* Lexer_get_exp(Lexer* this);
 
 static Token* Lexer_get_id(Lexer* this, int ch);
 static Token* Lexer_get_number(Lexer* this, int ch);
+static Token* Lexer_get_string_literal(Lexer* this, int ch);
+static Token* Lexer_get_punct(Lexer* this, int ch);
+static Token* Lexer_get_op(Lexer* this, int ch);
 
 Token* Lexer_next(Lexer* this) {
     Lexer_skip_whitespace(this);
@@ -569,6 +585,10 @@ Token* Lexer_next(Lexer* this) {
         return Lexer_get_id(this, ch);
     } else if (is_number_start(ch)) {
         return Lexer_get_number(this, ch);
+    } else if (is_string_literal_start(ch)) {
+        return Lexer_get_string_literal(this, ch);
+    } else if (is_punct(ch)) {
+        return Lexer_get_punct(this, ch);
     }
     return NULL;
 }
@@ -601,12 +621,75 @@ static int is_number_start(int ch) {
     return isdigit(ch) || ch == '.';
 }
 
+static int is_string_literal_start(int ch) {
+    return ch == '\'' || ch == '\"';
+}
+
+static int is_punct(int ch) {
+    static char* puncts = "(){}[];";
+    return !!strchr(puncts, ch);
+}
+
 static int is_keyword(String* string) {
     int size = sizeof(keywords) / sizeof(char*);
     for (int i = 0; i < size; i++) {
         if (strcmp(string->buf, keywords[i]) == 0) return 1;
     }
     return 0;
+}
+
+static BinOpKind get_binop(String* string) {
+    typedef struct {
+        char* op;
+        BinOpKind kind;
+    } StringToBinOpKind;
+    static const StringToBinOpKind ops[] = {
+        { "=", OP_ASSIGN },
+        { "+=", OP_PLUS_ASSIGN },
+        { "-=", OP_MINUS_ASSIGN },
+        { "*=", OP_MUL_ASSIGN },
+        { "/=", OP_DIV_ASSIGN },
+        { "%%=", OP_MOD_ASSIGN },
+        { "**=", OP_EXP_ASSIGN },
+        { "<<=", OP_SHL_ASSIGN },
+        { ">>=", OP_SHR_ASSIGN },
+        { ">>>=", OP_SHR_UNSIGNED_ASSIGN },
+        { "&=", OP_BITAND_ASSIGN },
+        { "^=", OP_BITXOR_ASSIGN },
+        { "|=", OP_BITOR_ASSIGN },
+        { "==" , OP_EQ },
+        { "!=", OP_NEQ },
+        { "===", OP_EQ_SAME },
+        { "!==", OP_NEQ_SAME },
+        { ">", OP_GT },
+        { ">=", OP_GTE },
+        { "<", OP_LT },
+        { "<=", OP_LTE },
+        { "=>", OP_ARROW },
+        { "%%", OP_MOD },
+        { "&", OP_BITAND },
+        { "|", OP_BITOR },
+        { "^", OP_BITXOR },
+        { "<<", OP_SHL },
+        { ">>", OP_SHR },
+        { ">>>", OP_SHR_UNSIGNED },
+        { "&&", OP_LAND },
+        { "||", OP_LOR },
+        { "in", OP_IN },
+        { "instanceof", OP_INSTANCEOF },
+    };
+    static const int ops_size = sizeof(ops) / sizeof(StringToBinOpKind);
+    for (int i = 0; i < ops_size; i++) {
+        if (strcmp(string->buf, ops[i].op) == 0) {
+            return ops[i].kind;
+        }
+    }
+    return OP_BINOP_ILLEGAL;
+}
+
+static int is_op_start(int ch) {
+    static char* op_starts = "=+-*/%%<>&^|!~";
+    return !!strchr(op_starts, ch);
 }
 
 static Pos Lexer_get_pos(Lexer* this) {
@@ -650,6 +733,8 @@ static String* Lexer_get_exp(Lexer* this) {
 
 static Token* Lexer_get_id(Lexer* this, int ch) {
     MAKE_TOKEN(id)
+    BinOpKind binop;
+    UnOpKind unop;
     String_push(id, ch);
     while (is_id_content(Lexer_peek_char(this))) {
         String_push(id, Lexer_get_char(this));
@@ -659,6 +744,12 @@ static Token* Lexer_get_id(Lexer* this, int ch) {
     token_data.id = id;
     if (is_keyword(id)) {
         return Token_new(TOK_KEYWORD, loc, token_data);
+    } else if ((binop = get_binop(id)) != OP_BINOP_ILLEGAL) {
+        token_data.binop = binop;
+        return Token_new(TOK_OP, loc, token_data);
+    } else if ((unop = get_unop(id)) != OP_UNOP_ILLEGAL) {
+        token_data.unop = unop;
+        return Token_new(TOK_OP, loc, token_data);
     }
     return Token_new(TOK_ID, loc, token_data);
 }
@@ -698,5 +789,27 @@ make_token:
     } else {
         token_data.integer = strtol(number->buf, NULL, 10);
     }
+    return Token_new(kind, loc, token_data);
+}
+
+static Token* Lexer_get_string_literal(Lexer* this, int ch) {
+    MAKE_TOKEN(string_literal)
+    TokenKind kind = TOK_STRING;
+    int next_ch = Lexer_get_char(this);
+    while (next_ch != ch) {
+        String_push(string_literal, next_ch);
+    }
+    end = Lexer_get_pos(this);
+    loc = Loc_make(start, end);
+    token_data.id = string_literal->buf;
+    return Token_new(kind, loc, token_data);
+}
+
+static Token* Lexer_get_punct(Lexer* this, int ch) {
+    MAKE_TOKEN(punct)
+    TokenKind kind = TOK_PUNCT;
+    end = Lexer_get_pos(this);
+    loc = Loc_make(start, end);
+    token_data.punct = ch;
     return Token_new(kind, loc, token_data);
 }
