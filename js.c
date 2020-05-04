@@ -38,6 +38,7 @@ typedef struct {
 String* String_new(void);
 void String_delete(String* this);
 void String_push(String* this, char item);
+void String_pop(String* this);
 void String_append(String* this, String* that);
 
 typedef struct {
@@ -52,6 +53,11 @@ Loc Loc_make(Pos start, Pos end);
 
 typedef enum {
     OP_ASSIGN,
+    OP_ADD,
+    OP_SUB,
+    OP_MUL,
+    OP_DIV,
+    OP_MOD,
     OP_PLUS_ASSIGN,
     OP_MINUS_ASSIGN,
     OP_MUL_ASSIGN,
@@ -495,6 +501,11 @@ void String_push(String* this, char item) {
     this->size++;
 }
 
+void String_pop(String* this) {
+    this->buf[this->size] = 0;
+    this->size--;
+}
+
 void String_append(String* this, String* that) {
     if (this->capacity - this->size > that->size) {
         strncpy(this->buf + this->size, that->buf, that->size * sizeof(char));
@@ -568,7 +579,7 @@ static Pos Lexer_get_pos(Lexer* this);
 static int Lexer_get_char(Lexer* this);
 static int Lexer_peek_char(Lexer* this);
 static String* Lexer_peek_char2(Lexer* this);
-static String* Lexer_peek_char3(Lexer* this);
+static void Lexer_skip_char2(Lexer* this);
 static void Lexer_skip_whitespace(Lexer* this);
 static String* Lexer_get_exp(Lexer* this);
 
@@ -589,6 +600,8 @@ Token* Lexer_next(Lexer* this) {
         return Lexer_get_string_literal(this, ch);
     } else if (is_punct(ch)) {
         return Lexer_get_punct(this, ch);
+    } else if (is_op_start(ch)) {
+        return Lexer_get_op(this, ch);
     }
     return NULL;
 }
@@ -645,6 +658,7 @@ static BinOpKind get_binop(String* string) {
     } StringToBinOpKind;
     static const StringToBinOpKind ops[] = {
         { "=", OP_ASSIGN },
+        { "+", OP_PLUS },
         { "+=", OP_PLUS_ASSIGN },
         { "-=", OP_MINUS_ASSIGN },
         { "*=", OP_MUL_ASSIGN },
@@ -710,6 +724,20 @@ static int Lexer_get_char(Lexer* this) {
 
 static int Lexer_peek_char(Lexer* this) {
     return this->code[this->pos];
+}
+
+static String* Lexer_peek_char2(Lexer* this) {
+    int ch1 = this->code[this->pos];
+    int ch2 = this->code[this->pos + 1];
+    String* s = String_new();
+    String_push(s, ch1);
+    String_push(s, ch2);
+    return s;
+}
+
+static void Lexer_skip_char2(Lexer* this) {
+    Lexer_get_char(this);
+    Lexer_get_char(this);
 }
 
 static void Lexer_skip_whitespace(Lexer* this) {
@@ -812,4 +840,31 @@ static Token* Lexer_get_punct(Lexer* this, int ch) {
     loc = Loc_make(start, end);
     token_data.punct = ch;
     return Token_new(kind, loc, token_data);
+}
+
+static Token* Lexer_get_op(Lexer* this, int ch) {
+    MAKE_TOKEN(op)
+    TokenKind kind = TOK_OP;
+    BinOpKind binop;
+    UnOpKind unop;
+    String* rest_op;
+    String_push(op, ch);
+    rest_op = Lexer_peek_char2(this);
+    String_append(op, rest_op);
+    String_delete(rest_op);
+    if ((binop = get_binop(op)) != OP_BINOP_ILLEGAL) {
+        Lexer_skip_char2(this);
+        end = Lexer_get_pos(this);
+        loc = Loc_make(start, end);
+        token_data.binop = binop;
+        return Token_new(kind, loc, token_data);
+    }
+    String_pop(op);
+    String_pop(op);
+    String_push(op, Lexer_peek_char(this));
+    if ((binop = get_binop(op)) != OP_BINOP_ILLEGAL) {
+        Lexer_get_char(this);
+        end = Lexer_get_pos(this);
+        
+    }
 }
