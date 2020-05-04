@@ -498,7 +498,7 @@ unique<Token> Lexer::get_id() {
 unique<Token> Lexer::get_number() {
     unique<Token> num = make_unique<Token>();
     string num_str = "";
-    int ch;
+    int ch = code.peek();
     bool is_exp = false;
     TokenKind kind = ch == '.' ? TokenKind::DOUBLE : TokenKind::INTEGER;
     for (;;) {
