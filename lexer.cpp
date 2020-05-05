@@ -2,6 +2,10 @@
 
 static bool is_id_start(int ch);
 static bool is_id_content(int ch);
+static bool is_number_start(int ch);
+static bool is_string_literal_start(int ch);
+static bool is_punct(int ch);
+static bool is_op_start(int ch);
 
 Lexer::Lexer(std::stringstream&& code): code(move(code)) {}
 
@@ -10,6 +14,14 @@ unique<Token> Lexer::next() {
     int ch = code.peek();
     if (is_id_start(ch)) {
         return get_id();
+    } else if (is_number_start(ch)) {
+        return get_number();
+    } else if (is_string_literal_start(ch)) {
+        return get_string_literal();
+    } else if (is_punct(ch)) {
+        return get_punct();
+    } else if (is_op_start(ch)) {
+        return get_op();
     }
     return NULL;
 }
@@ -91,15 +103,86 @@ unique<Token> Lexer::get_string_literal() {
 
 unique<Token> Lexer::get_punct() {
     unique<Token> punct = make_unique<Token>();
-    static auto is_punct = [](int ch) -> bool {
-        static string punct_chars = "{}[]();:";
-        return punct_chars.find(ch) != string::npos;
-    };
-    int ch = code.get();
-    if (is_punct(ch)) {
-
-    }
+    punct->data = static_cast<char>(code.get());
+    punct->kind = TokenKind::PUNCT;
     return punct;
+}
+
+unique<Token> Lexer::get_op() {
+    unique<Token> op = make_unique<Token>();
+    string op_str = "";
+    int ch = code.get();
+    op->kind = TokenKind::OP;
+    op_str.push_back(ch);
+    switch (ch) {
+    case '=':
+    case '!':
+        if (code.peek() == '=') {
+            op_str.push_back(code.get());
+            if (code.peek() == '=') {
+                op_str.push_back(code.get());
+            }
+        }
+        break;
+    case '+':
+    case '-':
+    case '/':
+    case '%':
+    case '&':
+    case '^':
+    case '|':
+        if (code.peek() == '=') {
+            op_str.push_back(code.get());
+        } else if (ch == '&' && code.peek() == '&') {
+            code.get();
+            op_str += "&&";
+        } else if (ch == '|' && code.peek() == '|') {
+            code.get();
+            op_str += "||";
+        } else if (ch == '+' && code.peek() == '+') {
+            code.get();
+            op_str += "++";
+        } else if (ch == '-' && code.peek() == '-') {
+            code.get();
+            op_str += "--";
+        }
+        break;
+    case '*':
+        if (code.peek() == '*') {
+            op_str.push_back(code.get());
+        }
+        if (code.peek() == '=') {
+            op_str.push_back(code.get());
+        }
+        break;
+    case '<':
+        if (code.peek() == '<') {
+            op_str.push_back(code.get());
+        }
+        if (code.peek() == '=') {
+            op_str.push_back(code.get());
+        }
+        break;
+    case '>':
+        if (code.peek() == '>') {
+            op_str.push_back(code.get());
+            if (code.peek() == '>') {
+                op_str.push_back(code.get());
+            }
+        }
+        if (code.peek() == '=') {
+            op_str.push_back(code.get());
+        }
+        break;
+    }
+    if (binary_ops.find(op_str) != binary_ops.end()) {
+        op->data = binary_ops[op_str];
+    } else if (unary_ops.find(op_str) != unary_ops.end()) {
+        op->data = unary_ops[op_str];
+    } else {
+        std::cerr << "Don't know how to handle operator [" << op_str << "]\n";
+    }
+    return op;
 }
 
 void Lexer::skip_whitespace() {
@@ -130,4 +213,22 @@ static bool is_id_start(int ch) {
 
 static bool is_id_content(int ch) {
     return is_id_start(ch) || ('0' <= ch && ch <= '9');
+}
+
+static bool is_number_start(int ch) {
+    return std::isdigit(ch) || ch == '.';
+}
+
+static bool is_string_literal_start(int ch) {
+    return ch == '\'' || ch == '\"';
+}
+
+static bool is_punct(int ch) {
+    static string punct_chars = "{}[]();:";
+    return punct_chars.find(ch) != string::npos;
+};
+
+static bool is_op_start(int ch) {
+    static string op_start_chars = "=+-*/%<>&^|!~";
+    return op_start_chars.find(ch) != string::npos;
 }
