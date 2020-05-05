@@ -262,12 +262,15 @@ public:
     virtual bool is_continue() { return false; }
     virtual bool is_try_catch() { return false; }
     virtual bool is_breakable() { return false; }
-    virtual bool is_block() { return true; }
+    virtual bool is_block() { return false; }
 };
 
 class IfElse final : public Statement {
 public:
-    IfElse(unique<Expression> cond, unique<Statement> then, unique<Statement> els);
+    IfElse(
+        unique<Expression> cond,
+        unique<Statement> then,
+        unique<Statement> els);
     virtual ~IfElse();
     virtual bool is_if_else() override { return true; }
 private:
