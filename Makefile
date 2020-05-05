@@ -1,5 +1,5 @@
 CC:=clang++
-SRC:=js.cpp
+SRC:=js.cpp lexer.cpp
 EXE:=js
 RM:=rm
 
