@@ -141,10 +141,13 @@ enum class TokenKind {
     PUNCT,
     OP,
     BOOLEAN,
-    SPREAD,
     EOT,
     BAD,
 };
+
+static hash_map<string, bool> booleans = {
+    {"true", true},
+    {"false", false}};
 
 enum class KeywordKind {
     AWAIT,
@@ -162,6 +165,7 @@ enum class KeywordKind {
     EXTENDS,
     FINALLY,
     FOR,
+    FUNCTION,
     IF,
     IMPLEMENTS,
     LET,
@@ -195,6 +199,7 @@ static hash_map<string, KeywordKind> keywords = {
     {"extends", KeywordKind::EXTENDS},
     {"finally", KeywordKind::FINALLY},
     {"for", KeywordKind::FOR},
+    {"function", KeywordKind::FUNCTION},
     {"if", KeywordKind::IF},
     {"implements", KeywordKind::IMPLEMENTS},
     {"let", KeywordKind::LET},

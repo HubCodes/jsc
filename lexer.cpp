@@ -22,8 +22,16 @@ unique<Token> Lexer::next() {
         return get_punct();
     } else if (is_op_start(ch)) {
         return get_op();
+    } else if (code.eof()) {
+        unique<Token> eot = make_unique<Token>();
+        eot->kind = TokenKind::EOT;
+        eot->data = 0;
+        return eot;
     }
-    return NULL;
+    unique<Token> bad = make_unique<Token>();
+    bad->kind = TokenKind::BAD;
+    bad->data = 0;
+    return bad;
 }
 
 unique<Token> Lexer::get_id() {
@@ -41,6 +49,9 @@ unique<Token> Lexer::get_id() {
     } else if (unary_ops.find(id_str) != unary_ops.end()) {
         id->kind = TokenKind::OP;
         id->data = unary_ops[id_str];
+    } else if (booleans.find(id_str) != booleans.end()) {
+        id->kind = TokenKind::BOOLEAN;
+        id->data = booleans[id_str];
     } else {
         id->kind = TokenKind::ID;
         id->data = id_str;
@@ -224,7 +235,7 @@ static bool is_string_literal_start(int ch) {
 }
 
 static bool is_punct(int ch) {
-    static string punct_chars = "{}[]();:";
+    static string punct_chars = "{}[]();:.";
     return punct_chars.find(ch) != string::npos;
 };
 
