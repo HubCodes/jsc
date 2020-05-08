@@ -250,6 +250,7 @@ private:
 
 class Statement;
 class Expression;
+class ID;
 
 class ASTNode {
 public:
@@ -268,6 +269,16 @@ public:
     virtual bool is_try_catch() { return false; }
     virtual bool is_breakable() { return false; }
     virtual bool is_block() { return false; }
+    virtual bool is_variable_declaration() { return false; }
+};
+
+class VariableDeclaration final : public Statement {
+public:
+    VariableDeclaration(unique<ID> name, unique<Expression> init);
+    virtual bool is_variable_declaration() override { return true; }
+private:
+    unique<ID> name;
+    unique<Expression> init;
 };
 
 class IfElse final : public Statement {
@@ -334,8 +345,6 @@ public:
     virtual ~Continue();
     virtual bool is_continue() override { return true; }
 };
-
-class ID;
 
 class Catch final : public Statement {
 public:
@@ -462,6 +471,16 @@ private:
     unique<ID> name;
     unique<Args> args;
     unique<Block> body;
+};
+
+class Parser {
+public:
+    Parser(unique<Lexer> lexer);
+    unique<vector<unique<ASTNode>>> parse();
+private:
+    unique<Function> get_function();
+    unique<VariableDeclaration> get_variable_declaration();
+    unique<Lexer> lexer;
 };
 
 #endif
