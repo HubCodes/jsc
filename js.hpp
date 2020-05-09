@@ -484,6 +484,15 @@ private:
     unique<Expression> get_expression();
     unique<BinOp> get_assign();
     unique<BinOp> get_logical_or();
+    unique<BinOp> get_logical_and();
+    unique<BinOp> get_bitwise_or();
+    unique<BinOp> get_bitwise_xor();
+    unique<BinOp> get_bitwise_and();
+    unique<BinOp> get_equality();
+    unique<BinOp> get_comparison();
+    unique<BinOp> get_bitshift();
+    unique<BinOp> get_addition();
+    unique<BinOp> get_multiplication();
     unique<Lexer> lexer;
 };
 
