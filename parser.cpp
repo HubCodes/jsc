@@ -42,6 +42,10 @@ unique<Function> Parser::get_function() {
     return nullptr;
 }
 
+unique<VariableDeclaration> Parser::get_variable_declaration() {
+    return nullptr;
+}
+
 unique<Expression> Parser::get_expression() {
     auto token = lexer->peek();
     if (is_array_open(token)) {
@@ -59,7 +63,8 @@ unique<BinOp> Parser::get_assign() {
     auto maybe_op = lexer->peek();
     while (is_assign_op(maybe_op)) {
         lexer->next();
-        lhs = make_unique<BinOp>(maybe_op->kind, lhs, get_logical_or());
+        auto op = get<BinOpKind>(maybe_op->data);
+        lhs = make_unique<BinOp>(op, move(lhs), get_logical_or());
         maybe_op = lexer->peek();
     }
     return lhs;
@@ -70,7 +75,8 @@ unique<BinOp> Parser::get_logical_or() {
     auto maybe_op = lexer->peek();
     while (is_logical_or_op(maybe_op)) {
         lexer->next();
-        lhs = make_unique<BinOp>(maybe_op->kind, lhs, get_logical_and());
+        auto op = get<BinOpKind>(maybe_op->data);
+        lhs = make_unique<BinOp>(op, move(lhs), get_logical_and());
         maybe_op = lexer->peek();
     }
     return lhs;
@@ -81,7 +87,8 @@ unique<BinOp> Parser::get_logical_and() {
     auto maybe_op = lexer->peek();
     while (is_logical_and_op(maybe_op)) {
         lexer->next();
-        lhs = make_unique<BinOp>(maybe_op->kind, lhs, get_bitwise_or());
+        auto op = get<BinOpKind>(maybe_op->data);
+        lhs = make_unique<BinOp>(op, move(lhs), get_bitwise_or());
         maybe_op = lexer->peek();
     }
     return lhs;
@@ -92,7 +99,8 @@ unique<BinOp> Parser::get_bitwise_or() {
     auto maybe_op = lexer->peek();
     while (is_bitwise_or_op(maybe_op)) {
         lexer->next();
-        lhs = make_unique<BinOp>(maybe_op->kind, lhs, get_bitwise_xor());
+        auto op = get<BinOpKind>(maybe_op->data);
+        lhs = make_unique<BinOp>(op, move(lhs), get_bitwise_xor());
         maybe_op = lexer->peek();
     }
     return lhs;
@@ -103,7 +111,8 @@ unique<BinOp> Parser::get_bitwise_xor() {
     auto maybe_op = lexer->peek();
     while (is_bitwise_xor_op(maybe_op)) {
         lexer->next();
-        lhs = make_unique<BinOp>(maybe_op->kind, lhs, get_bitwise_and());
+        auto op = get<BinOpKind>(maybe_op->data);
+        lhs = make_unique<BinOp>(op, move(lhs), get_bitwise_and());
         maybe_op = lexer->peek();
     }
     return lhs;
@@ -114,7 +123,8 @@ unique<BinOp> Parser::get_bitwise_and() {
     auto maybe_op = lexer->peek();
     while (is_bitwise_and_op(maybe_op)) {
         lexer->next();
-        lhs = make_unique<BinOp>(maybe_op->kind, lhs, get_equality());
+        auto op = get<BinOpKind>(maybe_op->data);
+        lhs = make_unique<BinOp>(op, move(lhs), get_equality());
         maybe_op = lexer->peek();
     }
     return lhs;
@@ -125,7 +135,8 @@ unique<BinOp> Parser::get_equality() {
     auto maybe_op = lexer->peek();
     while (is_equality_op(maybe_op)) {
         lexer->next();
-        lhs = make_unique<BinOp>(maybe_op->kind, lhs, get_comparison());
+        auto op = get<BinOpKind>(maybe_op->data);
+        lhs = make_unique<BinOp>(op, move(lhs), get_comparison());
         maybe_op = lexer->peek();
     }
     return lhs;
@@ -136,7 +147,8 @@ unique<BinOp> Parser::get_comparison() {
     auto maybe_op = lexer->peek();
     while (is_comparison_op(maybe_op)) {
         lexer->next();
-        lhs = make_unique<BinOp>(maybe_op->kind, lhs, get_bitshift());
+        auto op = get<BinOpKind>(maybe_op->data);
+        lhs = make_unique<BinOp>(op, move(lhs), get_bitshift());
         maybe_op = lexer->peek();
     }
     return lhs;
@@ -147,7 +159,8 @@ unique<BinOp> Parser::get_bitshift() {
     auto maybe_op = lexer->peek();
     while (is_bitshift_op(maybe_op)) {
         lexer->next();
-        lhs = make_unique<BinOp>(maybe_op->kind, lhs, get_addition());
+        auto op = get<BinOpKind>(maybe_op->data);
+        lhs = make_unique<BinOp>(op, move(lhs), get_addition());
         maybe_op = lexer->peek();
     }
     return lhs;
@@ -158,13 +171,26 @@ unique<BinOp> Parser::get_addition() {
     auto maybe_op = lexer->peek();
     while (is_addition_op(maybe_op)) {
         lexer->next();
-        lhs = make_unique<BinOp>(maybe_op->kind, lhs, get_multiplication());
+        auto op = get<BinOpKind>(maybe_op->data);
+        lhs = make_unique<BinOp>(op, move(lhs), get_multiplication());
         maybe_op = lexer->peek();
     }
     return lhs;
 }
 
 unique<BinOp> Parser::get_multiplication() {
+    auto lhs = get_exponentiation();
+    auto maybe_op = lexer->peek();
+    while (is_multiplication_op(maybe_op)) {
+        lexer->next();
+        auto op = get<BinOpKind>(maybe_op->data);
+        lhs = make_unique<BinOp>(op, move(lhs), get_multiplication());
+        maybe_op = lexer->peek();
+    }
+    return lhs;
+}
+
+unique<BinOp> Parser::get_exponentiation() {
     return nullptr;
 }
 

@@ -493,6 +493,7 @@ private:
     unique<BinOp> get_bitshift();
     unique<BinOp> get_addition();
     unique<BinOp> get_multiplication();
+    unique<BinOp> get_exponentiation();
     unique<Lexer> lexer;
 };
 
