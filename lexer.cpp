@@ -34,6 +34,13 @@ unique<Token> Lexer::next() {
     return bad;
 }
 
+unique<Token> Lexer::peek() {
+    auto pos = code.tellg();
+    auto result = next();
+    code.seekg(pos);
+    return result;
+}
+
 unique<Token> Lexer::get_id() {
     unique<Token> id = make_unique<Token>();
     string id_str = "";
@@ -44,10 +51,10 @@ unique<Token> Lexer::get_id() {
         id->kind = TokenKind::KEYWORD;
         id->data = keywords[id_str];
     } else if (binary_ops.find(id_str) != binary_ops.end()) {
-        id->kind = TokenKind::OP;
+        id->kind = TokenKind::BINOP;
         id->data = binary_ops[id_str];
     } else if (unary_ops.find(id_str) != unary_ops.end()) {
-        id->kind = TokenKind::OP;
+        id->kind = TokenKind::UNOP;
         id->data = unary_ops[id_str];
     } else if (booleans.find(id_str) != booleans.end()) {
         id->kind = TokenKind::BOOLEAN;
@@ -123,7 +130,6 @@ unique<Token> Lexer::get_op() {
     unique<Token> op = make_unique<Token>();
     string op_str = "";
     int ch = code.get();
-    op->kind = TokenKind::OP;
     op_str.push_back(ch);
     switch (ch) {
     case '=':
@@ -187,8 +193,10 @@ unique<Token> Lexer::get_op() {
         break;
     }
     if (binary_ops.find(op_str) != binary_ops.end()) {
+        op->kind = TokenKind::BINOP;
         op->data = binary_ops[op_str];
     } else if (unary_ops.find(op_str) != unary_ops.end()) {
+        op->kind = TokenKind::UNOP;
         op->data = unary_ops[op_str];
     } else {
         std::cerr << "Don't know how to handle operator [" << op_str << "]\n";

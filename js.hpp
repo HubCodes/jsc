@@ -139,7 +139,8 @@ enum class TokenKind {
     DOUBLE,
     STRING,
     PUNCT,
-    OP,
+    BINOP,
+    UNOP,
     BOOLEAN,
     EOT,
     BAD,
@@ -480,6 +481,9 @@ public:
 private:
     unique<Function> get_function();
     unique<VariableDeclaration> get_variable_declaration();
+    unique<Expression> get_expression();
+    unique<BinOp> get_assign();
+    unique<BinOp> get_logical_or();
     unique<Lexer> lexer;
 };
 
