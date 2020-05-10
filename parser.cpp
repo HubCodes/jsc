@@ -18,6 +18,7 @@ static bool is_comparison_op(const unique<Token>& token);
 static bool is_bitshift_op(const unique<Token>& token);
 static bool is_addition_op(const unique<Token>& token);
 static bool is_multiplication_op(const unique<Token>& token);
+static bool is_exponentiation_op(const unique<Token>& token);
 
 Parser::Parser(unique<Lexer> lexer): lexer(move(lexer)) {}
 
@@ -58,7 +59,7 @@ unique<Expression> Parser::get_expression() {
     return get_assign();
 }
 
-unique<BinOp> Parser::get_assign() {
+unique<Expression> Parser::get_assign() {
     auto lhs = get_logical_or();
     auto maybe_op = lexer->peek();
     while (is_assign_op(maybe_op)) {
@@ -70,7 +71,7 @@ unique<BinOp> Parser::get_assign() {
     return lhs;
 }
 
-unique<BinOp> Parser::get_logical_or() {
+unique<Expression> Parser::get_logical_or() {
     auto lhs = get_logical_and();
     auto maybe_op = lexer->peek();
     while (is_logical_or_op(maybe_op)) {
@@ -82,7 +83,7 @@ unique<BinOp> Parser::get_logical_or() {
     return lhs;
 }
 
-unique<BinOp> Parser::get_logical_and() {
+unique<Expression> Parser::get_logical_and() {
     auto lhs = get_bitwise_or();
     auto maybe_op = lexer->peek();
     while (is_logical_and_op(maybe_op)) {
@@ -94,7 +95,7 @@ unique<BinOp> Parser::get_logical_and() {
     return lhs;
 }
 
-unique<BinOp> Parser::get_bitwise_or() {
+unique<Expression> Parser::get_bitwise_or() {
     auto lhs = get_bitwise_xor();
     auto maybe_op = lexer->peek();
     while (is_bitwise_or_op(maybe_op)) {
@@ -106,7 +107,7 @@ unique<BinOp> Parser::get_bitwise_or() {
     return lhs;
 }
 
-unique<BinOp> Parser::get_bitwise_xor() {
+unique<Expression> Parser::get_bitwise_xor() {
     auto lhs = get_bitwise_and();
     auto maybe_op = lexer->peek();
     while (is_bitwise_xor_op(maybe_op)) {
@@ -118,7 +119,7 @@ unique<BinOp> Parser::get_bitwise_xor() {
     return lhs;
 }
 
-unique<BinOp> Parser::get_bitwise_and() {
+unique<Expression> Parser::get_bitwise_and() {
     auto lhs = get_equality();
     auto maybe_op = lexer->peek();
     while (is_bitwise_and_op(maybe_op)) {
@@ -130,7 +131,7 @@ unique<BinOp> Parser::get_bitwise_and() {
     return lhs;
 }
 
-unique<BinOp> Parser::get_equality() {
+unique<Expression> Parser::get_equality() {
     auto lhs = get_comparison();
     auto maybe_op = lexer->peek();
     while (is_equality_op(maybe_op)) {
@@ -142,7 +143,7 @@ unique<BinOp> Parser::get_equality() {
     return lhs;
 }
 
-unique<BinOp> Parser::get_comparison() {
+unique<Expression> Parser::get_comparison() {
     auto lhs = get_bitshift();
     auto maybe_op = lexer->peek();
     while (is_comparison_op(maybe_op)) {
@@ -154,7 +155,7 @@ unique<BinOp> Parser::get_comparison() {
     return lhs;
 }
 
-unique<BinOp> Parser::get_bitshift() {
+unique<Expression> Parser::get_bitshift() {
     auto lhs = get_addition();
     auto maybe_op = lexer->peek();
     while (is_bitshift_op(maybe_op)) {
@@ -166,7 +167,7 @@ unique<BinOp> Parser::get_bitshift() {
     return lhs;
 }
 
-unique<BinOp> Parser::get_addition() {
+unique<Expression> Parser::get_addition() {
     auto lhs = get_multiplication();
     auto maybe_op = lexer->peek();
     while (is_addition_op(maybe_op)) {
@@ -178,7 +179,7 @@ unique<BinOp> Parser::get_addition() {
     return lhs;
 }
 
-unique<BinOp> Parser::get_multiplication() {
+unique<Expression> Parser::get_multiplication() {
     auto lhs = get_exponentiation();
     auto maybe_op = lexer->peek();
     while (is_multiplication_op(maybe_op)) {
@@ -190,7 +191,19 @@ unique<BinOp> Parser::get_multiplication() {
     return lhs;
 }
 
-unique<BinOp> Parser::get_exponentiation() {
+unique<Expression> Parser::get_exponentiation() {
+    auto lhs = get_unary();
+    auto maybe_op = lexer->peek();
+    while (is_exponentiation_op(maybe_op)) {
+        lexer->next();
+        auto op = get<BinOpKind>(maybe_op->data);
+        lhs = make_unique<BinOp>(op, move(lhs), get_unary());
+        maybe_op = lexer->peek();
+    }
+    return lhs;
+}
+
+unique<Expression> Parser::get_unary() {
     return nullptr;
 }
 
@@ -330,4 +343,10 @@ static bool is_multiplication_op(const unique<Token>& token) {
             || op_kind == BinOpKind::MOD);
     };
     return token->kind == TokenKind::BINOP && is_multiplication();
+}
+
+static bool is_exponentiation_op(const unique<Token>& token) {
+    return (
+        token->kind == TokenKind::BINOP
+        && get<BinOpKind>(token->data) == BinOpKind::EXP);
 }

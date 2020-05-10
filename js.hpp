@@ -29,6 +29,7 @@ enum class BinOpKind {
     MUL,
     DIV,
     MOD,
+    EXP,
     PLUS_ASSIGN,
     MINUS_ASSIGN,
     MUL_ASSIGN,
@@ -72,6 +73,7 @@ static hash_map<string, BinOpKind> binary_ops = {
     {"*", BinOpKind::MUL},
     {"/", BinOpKind::DIV},
     {"%", BinOpKind::MOD},
+    {"**", BinOpKind::EXP},
     {"+=", BinOpKind::PLUS_ASSIGN},
     {"-=", BinOpKind::MINUS_ASSIGN},
     {"*=", BinOpKind::MUL_ASSIGN},
@@ -482,18 +484,19 @@ private:
     unique<Function> get_function();
     unique<VariableDeclaration> get_variable_declaration();
     unique<Expression> get_expression();
-    unique<BinOp> get_assign();
-    unique<BinOp> get_logical_or();
-    unique<BinOp> get_logical_and();
-    unique<BinOp> get_bitwise_or();
-    unique<BinOp> get_bitwise_xor();
-    unique<BinOp> get_bitwise_and();
-    unique<BinOp> get_equality();
-    unique<BinOp> get_comparison();
-    unique<BinOp> get_bitshift();
-    unique<BinOp> get_addition();
-    unique<BinOp> get_multiplication();
-    unique<BinOp> get_exponentiation();
+    unique<Expression> get_assign();
+    unique<Expression> get_logical_or();
+    unique<Expression> get_logical_and();
+    unique<Expression> get_bitwise_or();
+    unique<Expression> get_bitwise_xor();
+    unique<Expression> get_bitwise_and();
+    unique<Expression> get_equality();
+    unique<Expression> get_comparison();
+    unique<Expression> get_bitshift();
+    unique<Expression> get_addition();
+    unique<Expression> get_multiplication();
+    unique<Expression> get_exponentiation();
+    unique<Expression> get_unary();
     unique<Lexer> lexer;
 };
 
