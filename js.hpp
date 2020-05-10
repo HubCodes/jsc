@@ -109,9 +109,10 @@ static hash_map<string, BinOpKind> binary_ops = {
 enum class UnOpKind {
     INC,
     DEC,
-    NEG,
     PLUS,
+    MINUS,
     BITNOT,
+    NOT,
     DELETE,
     TYPEOF,
     VOID,
@@ -124,9 +125,10 @@ enum class UnOpKind {
 static hash_map<string, UnOpKind> unary_ops = {
     {"++", UnOpKind::INC},
     {"--", UnOpKind::DEC},
-    {"-", UnOpKind::NEG},
     {"+", UnOpKind::PLUS},
+    {"-", UnOpKind::MINUS},
     {"~", UnOpKind::BITNOT},
+    {"!", UnOpKind::NOT},
     {"delete", UnOpKind::DELETE},
     {"typeof", UnOpKind::TYPEOF},
     {"void", UnOpKind::VOID},
@@ -497,6 +499,8 @@ private:
     unique<Expression> get_multiplication();
     unique<Expression> get_exponentiation();
     unique<Expression> get_unary();
+    unique<Expression> get_postfix_unary();
+    unique<Expression> get_new_without_args();
     unique<Lexer> lexer;
 };
 

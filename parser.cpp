@@ -19,6 +19,8 @@ static bool is_bitshift_op(const unique<Token>& token);
 static bool is_addition_op(const unique<Token>& token);
 static bool is_multiplication_op(const unique<Token>& token);
 static bool is_exponentiation_op(const unique<Token>& token);
+static bool is_unary_op(const unique<Token>& token);
+static bool is_postfix_unary_op(const unique<Token>& token);
 
 Parser::Parser(unique<Lexer> lexer): lexer(move(lexer)) {}
 
@@ -204,7 +206,25 @@ unique<Expression> Parser::get_exponentiation() {
 }
 
 unique<Expression> Parser::get_unary() {
-    return nullptr;
+    auto maybe_op = lexer->peek();
+    if (is_unary_op(maybe_op)) {
+        lexer->next();
+        auto op = get<UnOpKind>(maybe_op->data);
+        auto rhs = get_unary();
+        return make_unique<UnOp>(op, move(rhs));
+    }
+    return get_postfix_unary();
+}
+
+unique<Expression> Parser::get_postfix_unary() {
+    auto lhs = get_new_without_args();
+    auto maybe_op = lexer->peek();
+    if (is_postfix_unary_op(maybe_op)) {
+        lexer->next();
+        auto op = get<UnOpKind>(maybe_op->data);
+        return make_unique<UnOp>(op, move(lhs));
+    }
+    return lhs;
 }
 
 static bool is_function_start(const unique<Token>& token) {
@@ -349,4 +369,39 @@ static bool is_exponentiation_op(const unique<Token>& token) {
     return (
         token->kind == TokenKind::BINOP
         && get<BinOpKind>(token->data) == BinOpKind::EXP);
+}
+
+static bool is_unary_op(const unique<Token>& token) {
+    if (std::holds_alternative<BinOpKind>(token->data)) {
+        auto op = get<BinOpKind>(token->data);
+        if (op == BinOpKind::ADD || op == BinOpKind::SUB) {
+            auto actual_op =
+                op == BinOpKind::ADD ? UnOpKind::PLUS : UnOpKind::MINUS;
+            token->data = actual_op;
+        }
+    }
+    auto is_unary = [&token]() {
+        auto op_kind = get<UnOpKind>(token->data);
+        return (
+            op_kind == UnOpKind::NOT
+            || op_kind == UnOpKind::BITNOT
+            || op_kind == UnOpKind::PLUS
+            || op_kind == UnOpKind::MINUS
+            || op_kind == UnOpKind::INC
+            || op_kind == UnOpKind::DEC
+            || op_kind == UnOpKind::TYPEOF
+            || op_kind == UnOpKind::VOID
+            || op_kind == UnOpKind::DELETE);
+    };
+    return (
+        (token->kind == TokenKind::BINOP || token->kind == TokenKind::UNOP)
+        && is_unary());
+}
+
+static bool is_postfix_unary_op(const unique<Token>& token) {
+    auto is_postfix_unary = [&token]() {
+        auto op = get<UnOpKind>(token->data);
+        return op == UnOpKind::INC || op == UnOpKind::DEC;
+    };
+    return token->kind == TokenKind::UNOP && is_postfix_unary();
 }
