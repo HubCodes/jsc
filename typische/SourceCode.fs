@@ -1,13 +1,13 @@
 module Typische.SourceCode
 
 type Loc =
-  { StartLine: int
-    StartCol: int
-    EndLine: int
-    EndCol: int }
+  { startLine: int
+    startCol: int
+    endLine: int
+    endCol: int }
 with
   static member ZeroPos () =
-    { StartLine = 0
-      StartCol = 0
-      EndLine = 0
-      EndCol = 0 }
+    { startLine = 0
+      startCol = 0
+      endLine = 0
+      endCol = 0 }
