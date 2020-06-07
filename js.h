@@ -72,11 +72,11 @@ typedef enum
 	TOK_STRING,
 	TOK_BOOLEAN,
 	TOK_SPREAD,
+	TOK_PUNCT,
 	TOK_EOT,
 	TOK_BAD,
 } TokenKind;
-typedef union TokenData
-{
+typedef union TokenData {
 	int integer;
 	double doubl;
 	int boolean;
@@ -222,8 +222,7 @@ typedef struct AST
 {
 	ASTKind kind;
 	Loc loc;
-	union
-	{
+	union {
 		int boolean;
 		int integer;
 		double doubl;
